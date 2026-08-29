@@ -1,14 +1,13 @@
-# Full-Stack Docker Deployment Guide
+Full-Stack Docker Deployment Guide
 
-## React (Vite) + Express + Docker + Nginx
+React (Vite) + Express + Docker + Nginx
 
 A full-stack web application built with **React, Vite, Node.js, Express.js, Nginx, Docker, and Docker Compose**.
 
 This project was used as part of my **BuildLabs DevOps Internship – Task 1: Version Control & Containerization** to demonstrate practical knowledge of source control, Docker containerization, application networking, environment configuration, deployment, testing, and troubleshooting.
 
----
 
-## Project Overview
+Project Overview
 
 The application contains two main components:
 
@@ -21,20 +20,19 @@ The backend runs independently as an Express API.
 
 Docker is used to package both components into containers, while Docker Compose manages the complete application.
 
-### Main Components
+ Main Components
 
-```text
+text
 client/              React + Vite frontend
 server/              Express backend API
 client/Dockerfile    Frontend container definition
 server/Dockerfile    Backend container definition
 client/nginx.conf    Nginx frontend and API proxy configuration
 docker-compose.yml   Multi-container application configuration
-```
 
----
 
-# Project Objective
+
+Project Objective
 
 The objective of this project is to prepare a web application for collaborative development and deployment using DevOps practices.
 
@@ -53,9 +51,8 @@ The task demonstrates:
 * Troubleshooting.
 * Technical documentation.
 
----
 
-# Technologies Used
+Technologies Used
 
 | Technology     | Purpose                                  |
 | -------------- | ---------------------------------------- |
@@ -70,11 +67,10 @@ The task demonstrates:
 | Git            | Version control                          |
 | GitHub         | Remote repository hosting                |
 
----
 
-# Application Architecture
+Application Architecture
 
-```text
+text
                  User / Browser
                        |
                        |
@@ -95,23 +91,21 @@ The task demonstrates:
              | Node.js + Express |
              |     Port 4000     |
              +-------------------+
-```
+
 
 Docker Compose creates a private application network.
 
 The frontend container can communicate with the backend using the Docker Compose service name:
 
-```text
+text
 backend:4000
-```
 
 This means containers do not need to depend on changing container IP addresses.
 
----
 
-# Project Structure
+ Project Structure
 
-```text
+text
 react-express-docker/
 │
 ├── client/
@@ -141,53 +135,47 @@ react-express-docker/
 ├── PROJECT_SUMMARY.md
 ├── SETUP.md
 └── LICENSE
-```
 
----
 
-# Backend – Express.js
+
+Backend – Express.js
 
 The backend is a simple Express API.
 
 It enables JSON parsing and CORS and provides an API endpoint:
 
-```text
+text
 GET /api/message
-```
 
 Example response:
 
-```json
+json
 {
   "message": "Hello from chaicode server"
 }
-```
 
 The backend obtains its port from an environment variable:
 
-```javascript
+javascript
 const PORT = process.env.PORT || 4000;
-```
 
 The application listens on all network interfaces:
 
-```javascript
+javascript
 app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server is running on port ${PORT}`);
 });
-```
 
 Using `0.0.0.0` allows the application to receive traffic from outside the container.
 
----
 
-# Backend Dockerfile
+Backend Dockerfile
 
 The backend container uses Node.js Alpine.
 
 Example:
 
-```dockerfile
+dockerfile
 FROM node:22-alpine
 
 WORKDIR /app
@@ -201,56 +189,51 @@ COPY . .
 EXPOSE 4000
 
 CMD ["npm", "start"]
-```
 
 The Docker image can be built manually from the `server` directory:
 
-```bash
+bash
 docker build -t express-server .
-```
 
 Run the backend image:
 
-```bash
+bash
 docker run -p 4000:4000 express-server
-```
 
 Test it:
 
-```bash
+bash
 curl http://localhost:4000/api/message
-```
 
----
 
-# Frontend – React + Vite
+
+Frontend – React + Vite
 
 The frontend is built with React and Vite.
 
 The React application requests data from:
 
-```text
+text
 /api/message
-```
 
 Example:
 
-```javascript
+javascript
 fetch("/api/message")
   .then((response) => response.json())
   .then((data) => setMessage(data.message))
   .catch((error) => console.error(error));
-```
+
 
 During local development, Vite can proxy API requests to:
 
-```text
+text
 http://localhost:4000
-```
+
 
 Example Vite configuration:
 
-```javascript
+javascript
 export default defineConfig({
   plugins: [react()],
   server: {
@@ -263,15 +246,13 @@ export default defineConfig({
     }
   }
 });
-```
 
 The development proxy is only used during local frontend development.
 
 In the Docker deployment, Nginx handles API proxying.
 
----
 
-# Frontend Dockerfile
+Frontend Dockerfile
 
 The frontend uses a **multi-stage Docker build**.
 
@@ -279,7 +260,7 @@ The first stage uses Node.js to build the React application.
 
 The second stage uses Nginx to serve the generated files.
 
-```dockerfile
+dockerfile
 FROM node:22-alpine AS build
 
 WORKDIR /app
@@ -304,19 +285,17 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
 
 CMD ["nginx", "-g", "daemon off;"]
-```
 
 Using a multi-stage build keeps build dependencies out of the final Nginx image.
 
----
 
-# Nginx Configuration
+Nginx Configuration
 
 Nginx serves the React frontend and proxies API requests to the backend container.
 
 Example:
 
-```nginx
+nginx
 server {
     listen 80;
     server_name localhost;
@@ -343,73 +322,67 @@ server {
     gzip on;
     gzip_types text/plain application/json text/css application/javascript;
 }
-```
 
 The important configuration is:
 
-```text
+text
 proxy_pass http://backend:4000/api/;
-```
 
 `backend` is the Docker Compose service name.
 
 Docker's internal DNS resolves the service name to the correct backend container.
 
----
 
-# Environment Variables
+Environment Variables
 
 Runtime configuration is separated from application source code.
 
 Example:
 
-```env
+env
 PORT=4000
 NODE_ENV=production
-```
 
 An example file is provided:
 
-```text
+text
 server/.env.example
-```
+
 
 Create your local environment file:
 
-```bash
+bash
 cp server/.env.example server/.env
-```
+
 
 The actual `.env` file should not be uploaded to GitHub.
 
 Add it to `.gitignore`:
 
-```text
+text
 server/.env
-```
+
 
 Docker Compose can load the file using:
 
-```yaml
+yaml
 env_file:
   - ./server/.env
-```
+
 
 Verify variables inside the running container:
 
-```bash
+bash
 docker exec fullstack_backend printenv | grep -E 'PORT|NODE_ENV'
-```
 
----
 
-# Docker Compose
+Docker Compose
 
 Docker Compose manages both application containers.
 
 Example configuration:
 
-```yaml
+yaml
 services:
 
   backend:
@@ -442,23 +415,21 @@ services:
 
     depends_on:
       - backend
-```
 
-### Port Mapping
 
-```text
+Port Mapping
+
+text
 Frontend:
 Host 8080 → Container 80
 
 Backend:
 Host 4000 → Container 4000
-```
 
 The frontend originally used host port `80`, but it was changed to `8080` because port `80` was already being used on the Ubuntu host.
 
----
 
-# Prerequisites
+Prerequisites
 
 Install the following before running the project:
 
@@ -468,173 +439,148 @@ Install the following before running the project:
 
 Check Docker:
 
-```bash
+bash
 docker --version
-```
 
 Check Docker Compose:
 
-```bash
+bash
 docker compose version
-```
 
----
 
-# Clone the Repository
+Clone the Repository
 
 Clone the project:
 
-```bash
+bash
 git clone https://github.com/Olododo-Usman/buildlabs-devops-internship.git
-```
+
 
 Enter the directory:
 
-```bash
-cd buildlabs-devops-internship
-```
+bash
+cd buildlab
 
----
 
-# Configure the Environment
+
+
+Configure the Environment
 
 Create the environment file:
 
-```bash
+bash
 cp server/.env.example server/.env
-```
 
 Example:
 
-```env
+env
 PORT=4000
 NODE_ENV=production
-```
 
----
 
-# Build Docker Images
+Build Docker Images
 
 Build both frontend and backend images:
 
-```bash
+bash
 docker compose build
-```
 
 Or build and start everything:
 
-```bash
+bash
 docker compose up --build -d
-```
 
 Check the images:
 
-```bash
+bash
 docker images
-```
 
 Expected application images include:
 
-```text
+text
 react-express-docker-client
 react-express-docker-backend
-```
 
----
-
-# Run the Application
+Run the Application
 
 Start the application:
 
-```bash
+bash
 docker compose up -d
-```
 
 Build and start:
 
-```bash
+bash
 docker compose up --build -d
-```
 
 Check running containers:
 
-```bash
+bash
 docker ps
-```
 
 Expected containers:
 
-```text
+text
 fullstack_frontend
 fullstack_backend
-```
 
 Expected ports:
 
-```text
+text
 fullstack_frontend    0.0.0.0:8080->80/tcp
 fullstack_backend     0.0.0.0:4000->4000/tcp
-```
 
----
 
-# Access the Application
+Access the Application
 
 Frontend:
 
-```text
+text
 http://SERVER_IP:8080
-```
 
 For the Ubuntu VM used during development:
 
-```text
+text
 http://192.168.33.10:8080
-```
 
 Backend API:
 
-```text
+text
 http://SERVER_IP:4000/api/message
-```
 
----
 
-# Test the Backend
+
+Test the Backend
 
 Run:
 
-```bash
+bash
 curl http://localhost:4000/api/message
-```
+
 
 Expected response:
 
-```json
+json
 {
   "message": "Hello from chaicode server"
 }
-```
 
----
 
-# Development Mode
+Development Mode
 
 The frontend and backend can also be run without Docker for development.
 
-## Backend
+Backend
 
-```bash
+bash
 cd server
 npm install
 npm start
-```
 
 Backend:
 
-```text
+text
 http://localhost:4000
-```
 
 API:
 
@@ -658,7 +604,7 @@ During development, the Vite proxy forwards `/api` requests to the backend.
 
 ---
 
-# Production Mode
+Production Mode
 
 In the Docker production setup:
 
@@ -670,282 +616,215 @@ In the Docker production setup:
 
 The browser therefore communicates with Nginx while Nginx communicates internally with Express.
 
----
-
-# Useful Docker Commands
-
-Check containers:
-
-```bash
-docker ps
-```
-
-Check Compose services:
-
-```bash
-docker compose ps
-```
-
-View logs:
-
-```bash
-docker compose logs
-```
-
-Backend logs:
-
-```bash
-docker compose logs backend
-```
-
-Frontend logs:
-
-```bash
-docker compose logs client
-```
-
-Follow logs:
-
-```bash
-docker compose logs -f
-```
 
 Restart:
 
-```bash
+bash
 docker compose restart
-```
+
 
 Restart backend only:
 
-```bash
+bash
 docker compose restart backend
-```
+
 
 Stop application:
 
-```bash
+bash
 docker compose down
-```
+
 
 Rebuild:
 
-```bash
+bash
 docker compose up --build -d
-```
+
 
 Build without cache:
 
-```bash
+bash
 docker compose build --no-cache
-```
+
 
 Enter backend container:
 
-```bash
+bash
 docker compose exec backend sh
-```
+
 
 Enter frontend container:
 
-```bash
+bash
 docker compose exec client sh
-```
 
----
 
-# Troubleshooting
+ Troubleshooting
 
-## Port 80 Already in Use
+Port 80 Already in Use
 
-### Problem
+ Problem
 
 Docker may return:
 
-```text
+text
 Bind for 0.0.0.0:80 failed: port is already allocated
-```
+
 
 This happened because Nginx was already installed and running on the Ubuntu host.
 
-### Solution
+ Solution
 
 The frontend mapping was changed from:
 
-```yaml
+yaml
 ports:
   - "80:80"
-```
+
 
 to:
 
-```yaml
+yaml
 ports:
   - "8080:80"
-```
 
 The frontend then became accessible through:
 
-```text
+text
 http://SERVER_IP:8080
-```
 
----
 
-## Nginx Cannot Resolve Backend
+ Nginx Cannot Resolve Backend
 
-### Problem
+Problem
 
 The frontend container may show:
 
-```text
+text
 host not found in upstream "backend"
-```
 
-### Solution
+
+Solution
 
 Verify that the Compose service is named:
 
-```text
+text
 backend
-```
 
 and Nginx uses:
 
-```text
+text
 backend:4000
-```
 
 Then recreate the environment:
 
-```bash
+bash
 docker compose down
 docker compose up --build -d
-```
 
 Check:
 
-```bash
+bash
 docker compose logs backend
 docker compose logs client
-```
 
----
-
-## 502 Bad Gateway
+502 Bad Gateway
 
 Check that the backend is running:
 
-```bash
+bash
 docker compose ps
-```
 
 Check backend logs:
 
-```bash
+bash
 docker compose logs backend
-```
 
 Test backend directly:
 
-```bash
+bash
 curl http://localhost:4000/api/message
-```
 
----
 
-## Frontend Changes Not Appearing
+Frontend Changes Not Appearing
 
 Rebuild:
 
-```bash
+bash
 docker compose up --build -d
-```
 
 If necessary:
 
-```bash
+bash
 docker compose build --no-cache
 docker compose up -d
-```
 
----
 
-## Container Keeps Restarting
+Container Keeps Restarting
 
 Check all containers:
 
-```bash
+bash
 docker ps -a
-```
 
 Then inspect logs:
 
-```bash
+bash
 docker compose logs <service-name>
-```
 
----
 
-## GitHub Permission Error
+GitHub Permission Error
 
 During the project setup, Git returned a `403` error because the remote repository still pointed to the original open-source repository.
 
 Check the remote:
 
-```bash
+bash
 git remote -v
-```
 
 Change it:
 
-```bash
+bash
 git remote set-url origin https://github.com/Olododo-Usman/buildlabs-devops-internship.git
-```
 
 Authenticate GitHub CLI:
 
-```bash
+bash
 gh auth login
-```
 
 Configure Git to use GitHub CLI authentication:
 
-```bash
+bash
 gh auth setup-git
-```
 
----
-
-# Challenges Encountered
+Challenges Encountered
 
 Several real deployment issues were encountered during this task.
 
-### Port Conflict
+Port Conflict
 
 Host port `80` was already occupied by Nginx.
 
 The frontend was therefore changed to host port `8080`.
 
-### Docker Networking
+Docker Networking
 
 Nginx initially failed to resolve the backend service.
 
 Recreating the Docker Compose environment restored service networking.
 
-### GitHub Authentication
+GitHub Authentication
 
 GitHub returned a `403` error when the repository remote pointed to the original project's repository.
 
 The remote was changed to my own GitHub repository and GitHub CLI authentication was configured.
 
-### Environment Configuration
+Environment Configuration
 
 The backend was configured to use environment variables while ensuring the actual `.env` file was not committed to GitHub.
 
----
 
-# Reflection
+Reflection
 
 For this task, I worked with an open-source React and Express application as the application base and focused on preparing it for a DevOps deployment workflow.
 
@@ -961,10 +840,76 @@ One of the most important lessons from this task was understanding the differenc
 
 For example:
 
-```text
+text
 8080:80
-```
 
-means that users access port `8080` on the Ubuntu machine, while Nginx continues listening on port `80` inside its container.
+means that users access port 8080 on the Ubuntu machine, while Nginx continues listening on port `80` inside its container.
 
 I also gained practical experience troubleshooting Docker service discovery, Nginx configuration, GitHub authentication, environment variables, and container deployment.
+
+
+The complete application can be started with:
+
+bash
+docker compose up -d
+
+Easier Troubleshooting
+
+Each application's logs can be inspected independently.
+
+CI/CD Readiness
+
+Docker images can easily be integrated into automated build, testing, and deployment pipelines.
+
+
+Screenshots / Deployment Evidence
+
+The repository should contain screenshots demonstrating that the project runs successfully inside Docker.
+
+Screenshot 1 – Successful Docker Build
+
+Run:
+
+bash
+docker compose up --build -d
+
+Capture the output showing that both Docker images were successfully built.
+
+
+Screenshot 2 – Running Containers
+
+Run:
+
+bash
+docker ps
+
+
+Capture:
+
+text
+fullstack_frontend
+fullstack_backend
+
+
+showing both containers in the Up state.
+
+
+Screenshot 3 – Application Running
+
+Open:
+
+text
+http://192.168.33.10:8080
+
+Capture the application successfully displayed in the browser.
+
+Screenshot 4 – Backend API Test
+
+Run:
+
+bash
+curl http://localhost:4000/api/message
+
+
+Capture the successful JSON response.
+
