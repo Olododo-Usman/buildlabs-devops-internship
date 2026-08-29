@@ -1,0 +1,302 @@
+# React + Express Docker Application
+
+A full-stack web application built with **React, Vite, Node.js, Express.js, Nginx, Docker, and Docker Compose**. This project was used as part of my BuildLabs DevOps Internship to demonstrate version control, containerization, environment configuration, and deployment practices.
+
+## Project Overview
+
+The application consists of two main services:
+
+* **Frontend:** React application built with Vite and served using Nginx.
+* **Backend:** Node.js/Express API.
+
+Both services run inside separate Docker containers and are managed using Docker Compose.
+
+## Technologies Used
+
+* Git
+* GitHub
+* Docker
+* Docker Compose
+* React
+* Vite
+* Node.js
+* Express.js
+* Nginx
+
+## Application Architecture
+
+```text
+Browser
+   |
+   | Port 8080
+   v
+Frontend Container
+React + Nginx
+   |
+   | API Request
+   v
+Backend Container
+Node.js + Express
+   |
+   | Port 4000
+   v
+REST API
+```
+
+Docker Compose provides networking between the frontend and backend containers.
+
+## Project Structure
+
+```text
+react-express-docker/
+│
+├── client/
+│   ├── src/
+│   ├── Dockerfile
+│   ├── .dockerignore
+│   ├── nginx.conf
+│   ├── package.json
+│   └── vite.config.js
+│
+├── server/
+│   ├── Dockerfile
+│   ├── .dockerignore
+│   ├── index.js
+│   ├── package.json
+│   └── .env.example
+│
+├── docker-compose.yml
+├── .gitignore
+├── README.md
+└── LICENSE
+```
+
+## Git and GitHub Workflow
+
+Git is used for version control, while GitHub provides the remote repository for collaboration and source-code management.
+
+Typical workflow:
+
+```bash
+git status
+git add .
+git commit -m "Describe changes made"
+git push origin main
+```
+
+The project uses meaningful commits to make changes easier to track and understand.
+
+## Docker Containerization
+
+The application uses separate Docker containers for the frontend and backend.
+
+The frontend React application is built with Vite and served using Nginx.
+
+The Express backend runs in a Node.js container and listens on all network interfaces using:
+
+```javascript
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server running on port ${PORT}`);
+});
+```
+
+This allows the backend to receive traffic through Docker networking.
+
+## Docker Compose
+
+Docker Compose manages both application services.
+
+The main port mappings are:
+
+```text
+Frontend: Host 8080 → Container 80
+Backend:  Host 4000 → Container 4000
+```
+
+The frontend is therefore accessible at:
+
+```text
+http://SERVER_IP:8080
+```
+
+The backend API is accessible at:
+
+```text
+http://SERVER_IP:4000/api/message
+```
+
+## Environment Variables
+
+Environment-specific configuration is separated from the application source code.
+
+The backend supports the `PORT` environment variable:
+
+```javascript
+const PORT = process.env.PORT || 4000;
+```
+
+Example environment configuration:
+
+```env
+PORT=4000
+NODE_ENV=production
+```
+
+Developers can create their environment file from:
+
+```bash
+cp server/.env.example server/.env
+```
+
+The real `.env` file should not be committed to Git.
+
+## Installation
+
+### Prerequisites
+
+Ensure the following are installed:
+
+* Git
+* Docker
+* Docker Compose
+
+Clone the repository:
+
+```bash
+git clone <repository-url>
+cd buildlabs-devops-internship
+```
+
+Create the environment configuration:
+
+```bash
+cp server/.env.example server/.env
+```
+
+## Build Docker Images
+
+Build both application images with:
+
+```bash
+docker compose build
+```
+
+Alternatively, build and start the application at the same time:
+
+```bash
+docker compose up --build -d
+```
+
+Check the images:
+
+```bash
+docker images
+```
+
+## Run the Application
+
+0s are:
+
+```text
+fullstack_frontend
+fullstack_backend
+```
+
+Stop the application with:
+
+```bash
+docker compose down
+```
+
+## Application Testing
+
+Test the backend API:
+
+```bash
+curl http://localhost:4000/api/message
+```
+
+Expected response:
+
+```json
+{
+  "message": "Hello from chaicode server"
+}
+```
+
+Check application logs:
+
+```bash
+docker compose logs
+```
+
+Backend logs:
+
+```bash
+docker compose logs backend
+```
+
+Frontend logs:
+
+```bash
+docker compose logs client
+```
+
+## Troubleshooting
+
+### Port 80 Already in Use
+
+During deployment, host port `80` was already occupied by Nginx.
+
+The frontend mapping was changed from port `80` to host port `8080`:
+
+```yaml
+ports:
+  - "8080:80"
+```
+
+The application could then be accessed through port `8080` without conflicting with the host Nginx service.
+
+### Backend Host Resolution
+
+The frontend Nginx container initially reported:
+
+```text
+host not found in upstream "backend"
+```
+
+The Docker Compose environment was recreated:
+
+```bash
+docker compose down
+docker compose up --build -d
+```
+
+This recreated the Compose network and allowed the services to communicate correctly.
+
+### GitHub Permission Error
+
+A `403` error was encountered while pushing because the Git remote was pointing to the original project's repository.
+
+The remote was changed to my own repository and GitHub authentication was configured before pushing again.
+
+## Challenges and Solutions
+
+The main challenges encountered during the task were:
+
+* Host port `80` conflicting with Nginx.
+* Docker frontend container failing to resolve the backend service.
+* GitHub authentication and repository permission errors.
+* Configuring environment variables without committing local environment configuration.
+
+Resolving these issues provided practical experience with Docker networking, Linux ports, Nginx, Git, GitHub authentication, and environment management.
+
+## Reflection
+
+For this task, I used a full-stack React and Express application to practice DevOps version-control and containerization workflows.
+
+The application was separated into frontend and backend containers. Docker Compose was used to build, network, start, and stop the services.
+
+One important lesson from this task was understanding the difference between host ports and container ports. The port `80` conflict demonstrated why port mappings must be considered when deploying multiple services on the same host.
+
+I also gained practical experience troubleshooting Docker Compose networking when Nginx could not initially resolve the backend service.
