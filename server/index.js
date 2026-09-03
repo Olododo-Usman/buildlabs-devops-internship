@@ -76,6 +76,8 @@ app.get("/api/message", (req, res) => {
   // 2. This endpoint gets triggered
   // 3. Server responds with JSON: { message: "Hello from chaicode server" }
   // 4. Frontend receives and displays it
+res.send("BuildLabs backend is running successfully");
+});
   res.json({ message: "Hello from chaicode server" });
 });
 
