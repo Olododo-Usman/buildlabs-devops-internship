@@ -79,6 +79,13 @@ app.get("/api/message", (req, res) => {
   res.json({ message: "Hello from chaicode server" });
 });
 
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "healthy",
+    service: "buildlabs-backend",
+    timestamp: new Date().toISOString()
+  });
+});
 // Example of additional routes you might add:
 // 
 // POST endpoint - for creating data
