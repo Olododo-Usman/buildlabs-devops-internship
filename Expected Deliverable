@@ -1,0 +1,529 @@
+Infrastructure Monitoring & Automation
+
+Monitoring Overview
+
+For Task 3, I implemented basic infrastructure and application monitoring for the deployed React and Express application using the monitoring capabilities provided by Render.
+
+The backend application is deployed as a Render Web Service. A dedicated `/health` endpoint was added to the Express application to provide a simple way of checking whether the application is running and responding correctly.
+
+The health endpoint returns an HTTP `200` response with information about the service status and a timestamp:
+
+json
+{
+  "status": "healthy",
+  "service": "buildlabs-backend",
+  "timestamp": "current-time"
+}
+
+Render was configured to use:
+text
+/health
+
+as the application's health-check path.
+
+Areas Monitored
+
+The monitoring implementation covers the following areas:
+
+| Monitoring Area          | Implementation                                  |
+| ------------------------ | ----------------------------------------------- |
+| Application availability | Render deployment status and `/health` endpoint |
+| Health monitoring        | Render Health Check using `/health`             |
+| Deployment status        | Render deployment dashboard                     |
+| Application logs         | Render Logs                                     |
+| Error logs               | Render runtime/error logs                       |
+| Network activity         | Render outbound bandwidth metrics               |
+| Memory resources         | 512 MB resource limit displayed by Render       |
+| CPU resources            | 0.15 CPU resource limit displayed by Render     |
+| Deployment performance   | Render deployment duration/status               |
+
+The monitoring screenshots demonstrate successful deployments, application startup, health-check configuration, logs, errors, bandwidth activity, and the available infrastructure resource information.
+
+Detailed CPU and memory utilization graphs were not available under the selected Render free compute plan. Therefore, monitoring focused on the metrics and observability features supported by the current environment, including service health, logs, deployment events, resource limits, and network activity.
+
+ Automation Implemented
+
+Two important automation improvements were incorporated into the infrastructure.
+
+Automated deployment: Changes pushed to the GitHub repository trigger the CI workflow. The application is validated and built through GitHub Actions, while Render provides automated cloud deployment from the connected repository.
+
+Automated health checking:** Render periodically checks the `/health` endpoint to determine whether the backend service is healthy and available.
+
+These improvements reduce manual deployment work and provide faster detection of application problems.
+
+2. Architecture Diagram
+
+The project architecture follows this general workflow:
+
+text
+                        DEVELOPER
+                            │
+                         Git Push
+                            │
+                            ▼
+                 ┌────────────────────┐
+                 │ GitHub Repository  │
+                 │   Source Control   │
+                 └─────────┬──────────┘
+                           │
+                           ▼
+                 ┌────────────────────┐
+                 │  GitHub Actions    │
+                 │    CI Pipeline     │
+                 │                    │
+                 │ • Dependencies     │
+                 │ • Quality Check    │
+                 │ • Frontend Build   │
+                 │ • Docker Build     │
+                 └─────────┬──────────┘
+                           │
+                           ▼
+                    Docker Images
+                           │
+                           ▼
+                 ┌────────────────────┐
+                 │       Render       │
+                 │   Cloud Platform   │
+                 └─────────┬──────────┘
+                           │
+              ┌────────────┴────────────┐
+              │                         │
+              ▼                         ▼
+      ┌────────────────┐       ┌────────────────┐
+      │ React Frontend │       │Express Backend │
+      │     Vite       │──────►│    Node.js     │
+      │    client/     │ HTTPS │    server/     │
+      └───────┬────────┘       └───────┬────────┘
+              │                        │
+              │                        ▼
+              │                ┌───────────────┐
+              │                │ /health       │
+              │                │ Health Check  │
+              │                └───────────────┘
+              │
+              ▼
+          ┌────────┐
+          │ Users  │
+          │Browser │
+          └────────┘
+
+                    MONITORING
+                        │
+              ┌─────────┼─────────┐
+              ▼         ▼         ▼
+             Logs     Metrics   Health
+
+Use the professional diagram we generated earlier as the actual image deliverable:
+
+[Download the professional architecture diagram](sandbox:/mnt/data/a_clean_technical_infographic_architecture_diagram.png)
+
+3. Incident Response Guide
+
+ Purpose
+
+This incident response guide provides a simple procedure for identifying, investigating, and resolving common problems affecting the BuildLabs application and its deployment infrastructure.
+
+Incident 1: Application fails because port 4000 is already in use
+
+Symptom
+
+text
+Error: listen EADDRINUSE:
+address already in use 0.0.0.0:4000
+
+Possible cause: Another Node.js process or Docker container is already listening on port `4000`.
+
+Investigation:
+
+bash
+sudo ss -ltnp | grep :4000
+
+or:
+
+bash
+sudo lsof -i :4000
+
+Resolution: Identify the process ID and stop the unnecessary process:
+
+bash
+sudo kill <PID>
+
+Then restart the required application or Docker container.
+
+Prevention: Avoid running `npm start` and the Docker backend simultaneously when both are mapped to host port `4000`.
+
+Incident 2: `/health` returns `Cannot GET /health`
+
+Symptom
+
+text
+Cannot GET /health
+
+
+Possible causes: The health route has not been added, an older version of the application is running, or the latest Docker image has not been rebuilt.
+
+Resolution: Verify that `server/index.js` contains:
+
+javascript
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "healthy",
+    service: "buildlabs-backend",
+    timestamp: new Date().toISOString()
+  });
+});
+
+
+Rebuild and restart the application if necessary:
+
+bash
+docker compose down
+docker compose up -d --build
+
+Then test:
+bash
+curl http://localhost:4000/health
+
+
+Incident 3: `npm install` cannot find `package.json`
+
+Symptom
+
+text
+npm error code ENOENT
+Could not read package.json
+
+Possible cause: `npm install` is being executed from the repository root even though the frontend and backend have separate `package.json` files.
+
+Resolution: For the backend:
+
+bash
+cd server
+npm install
+
+For the frontend:
+bash
+cd client
+npm install
+
+For Render, ensure the correct Root Directory is configured for the service.
+
+Incident 4: Render deployment fails
+
+Possible causes: Incorrect Root Directory, missing dependencies, incorrect start command, application build failure, or application not binding to Render's assigned port.
+
+Resolution: Inspect Render deployment logs first.
+
+For the backend, verify that the application uses:
+
+javascript
+const PORT = process.env.PORT || 4000;
+
+and listens on:
+
+javascript
+app.listen(PORT, "0.0.0.0", ...)
+
+Also verify the service configuration and Docker configuration.
+
+Incident 5: Frontend cannot communicate with backend
+
+Symptoms: The frontend loads but API data is unavailable, or the browser reports a failed network request.
+
+Possible causes: Incorrect backend URL, incorrect `VITE_API_URL`, backend unavailable, or deployment configuration error.
+
+Resolution: Verify the backend endpoint first. Then ensure the frontend environment contains the backend base URL:
+
+env
+VITE_API_URL=<backend-base-url>
+
+The frontend constructs the request with:
+
+javascript
+fetch(`${API_URL}/api/message`)
+
+Rebuild/redeploy the frontend after changing a Vite environment variable.
+
+Incident 6: GitHub Actions pipeline fails
+
+Possible causes: Dependency installation failure, syntax error, frontend build failure, Docker build failure, or Docker Compose configuration problem.
+
+Resolution: Open the failed GitHub Actions run and identify the first failed step. Fix the underlying application/configuration problem locally, commit the correction, and push again.
+
+A deployment should not be treated as successful until the CI checks have passed.
+
+Incident Response Procedure
+
+For any production incident, the general process is:
+
+text
+Detect problem
+      ↓
+Check application health
+      ↓
+Review Render logs
+      ↓
+Check latest deployment
+      ↓
+Review GitHub Actions
+      ↓
+Identify root cause
+      ↓
+Apply correction
+      ↓
+Commit and push
+      ↓
+CI validation
+      ↓
+Redeploy
+      ↓
+Verify /health and application
+      ↓
+Document incident
+
+4. Infrastructure Documentation
+
+ Project Overview
+
+The BuildLabs DevOps Internship project is a full-stack web application consisting of a React/Vite frontend and an Express/Node.js backend.
+
+The project was used to demonstrate practical DevOps concepts including source control, containerization, CI/CD, cloud deployment, environment configuration, monitoring, automation, and incident response.
+
+ Technology Stack
+
+| Component                  | Technology                           |
+| -------------------------- | ------------------------------------ |
+| Source Control             | Git & GitHub                         |
+| Frontend                   | React + Vite                         |
+| Backend                    | Node.js + Express                    |
+| Containerization           | Docker                               |
+| Multi-container management | Docker Compose                       |
+| CI                         | GitHub Actions                       |
+| Cloud Platform             | Render                               |
+| Monitoring                 | Render Logs, Metrics & Health Checks |
+| API communication          | HTTPS/REST                           |
+| Configuration              | Environment variables                |
+
+ Source Control
+
+The application source code is maintained in GitHub. Git is used locally for version control, while GitHub provides remote repository hosting and integration with the CI/CD pipeline.
+
+Development changes follow the general workflow:
+
+bash
+git add .
+git commit -m "descriptive commit message"
+git push origin main
+
+Docker Infrastructure
+
+The frontend and backend are containerized separately.
+
+The frontend Docker image uses a Node.js build stage to compile the React/Vite application and Nginx to serve the generated frontend.
+
+The backend Docker image runs the Node.js/Express application.
+
+Docker Compose provides local orchestration of the services.
+
+The local architecture uses:
+
+text
+Frontend:
+Host 8080 → Container 80
+
+Backend:
+Host 4000 → Container 4000
+
+CI Pipeline
+
+GitHub Actions provides Continuous Integration.
+
+The `Test and Build Application` workflow automatically validates application changes.
+
+The workflow performs tasks including:
+
+text
+Checkout source code
+        ↓
+Configure Node.js
+        ↓
+Install backend dependencies
+        ↓
+Backend syntax/quality check
+        ↓
+Install frontend dependencies
+        ↓
+Build frontend
+        ↓
+Validate Docker Compose
+        ↓
+Build Docker images
+        ↓
+Pipeline Success
+
+A successful GitHub Actions execution was recorded, demonstrating that the application could pass the configured checks and builds before deployment.
+
+Cloud Infrastructure
+
+Render is used as the cloud deployment platform.
+
+The backend is deployed as a Web Service and runs the Express application in the cloud.
+
+The application supports Render's dynamically assigned port using:
+
+javascript
+const PORT = process.env.PORT || 4000;
+
+and binds to:
+
+text
+0.0.0.0
+
+This enables the service to operate correctly inside the cloud/container environment.
+
+ Environment Variables
+
+Environment-specific values are kept outside the application source code where appropriate.
+
+The frontend uses:
+
+env
+VITE_API_URL=<backend-url>
+
+to identify the deployed backend.
+
+The backend uses:
+
+text
+process.env.PORT
+
+to receive the port provided by the hosting platform.
+
+This prevents environment-specific URLs and ports from being unnecessarily hard-coded.
+
+Monitoring Infrastructure
+
+Monitoring is provided through several mechanisms:
+
+Health checks: `/health` provides a machine-readable indication of backend availability.
+
+Logs: Render application and deployment logs provide information about startup, runtime activity, errors, and deployment failures.
+
+Metrics: Render's metrics dashboard provides available infrastructure and bandwidth information.
+
+Deployment events: Render records deployment status and history.
+
+Together, these provide basic observability into the deployed infrastructure.
+
+5. Final Deployment Documentation
+
+ Deployment Process
+
+The final deployment process begins when application changes are committed and pushed to GitHub.
+
+ Step 1 – Source Code
+
+Changes are committed:
+
+bash
+git add .
+git commit -m "update application"
+git push origin main
+
+Step 2 – Continuous Integration
+
+The push triggers GitHub Actions.
+
+The CI pipeline validates the backend, builds the frontend, validates the Docker Compose configuration, and builds the application's Docker images.
+
+If a step fails, the workflow reports the failure for investigation.
+
+Step 3 – Cloud Deployment
+
+The GitHub repository is connected to Render.
+
+Render obtains the application source and performs the configured deployment process.
+
+The backend starts using Node.js/Express and listens on the port supplied by Render.
+
+Successful logs include messages indicating that the server is listening on `0.0.0.0` and that the service is live.
+
+Step 4 – Environment Configuration
+
+The frontend receives the backend base URL through:
+
+env
+VITE_API_URL=<backend-url>
+
+The backend receives its production port through:
+
+javascript
+process.env.PORT
+
+Step 5 – Health Verification
+
+After deployment, the backend is verified through:
+
+text
+GET /health
+
+A successful response indicates:
+
+json
+{
+  "status": "healthy",
+  "service": "buildlabs-backend",
+  "timestamp": "..."
+}
+
+ Step 6 – Monitoring
+
+After deployment, Render is used to observe:
+
+text
+Deployment status
+Application availability
+Health-check status
+Application logs
+Error logs
+Network/bandwidth activity
+Available infrastructure resource information
+
+This allows deployment and runtime problems to be investigated from a central platform.
+
+
+Task 3 Reflection
+
+During this project, I learned that DevOps goes beyond simply deploying an application. It involves combining development, operations, automation, monitoring, documentation, and problem-solving to create a reliable software delivery process.
+
+Working with Git, Docker, GitHub Actions, and Render helped me understand how different DevOps tools work together. I learned how to containerize frontend and backend services, build a CI pipeline, deploy applications to a cloud platform, manage environment variables, implement application health checks, monitor logs and infrastructure information, and troubleshoot deployment problems.
+
+Automation improves software delivery by reducing repetitive manual work and making processes more consistent. Automated CI checks help identify problems before deployment, while automatic cloud deployment and health checks make application delivery and monitoring more reliable.
+
+One of the most valuable parts of the project was troubleshooting real problems, including port conflicts, incorrect working directories, missing `package.json` errors, cloud deployment configuration, frontend/backend communication, and health-check issues. These challenges improved my ability to investigate problems using logs and command-line tools instead of only following predefined deployment steps.
+
+With more time, I would improve the project by introducing more advanced observability with tools such as Prometheus and Grafana, automated alerts, persistent application data, automated backups, stronger automated testing, security scanning, Infrastructure as Code, and a more advanced deployment strategy such as staging and production environments.
+
+Overall, this project gave me practical experience with the complete DevOps lifecycle: **build, containerize, automate, deploy, monitor, troubleshoot, and document.**
+
+Final submission structure
+
+I recommend putting the deliverables in your repository like this:
+
+text
+docs/
+├── architecture/
+│   └── architecture-diagram.png
+│
+├── monitoring/
+│   ├── health-check.png
+│   ├── deployment-success.png
+│   ├── application-logs.png
+│   ├── error-logs.png
+│   ├── bandwidth-metrics.png
+│   ├── cpu-metrics.png
+│   └── memory-metrics.png
+│
+├── INCIDENT_RESPONSE.md
+├── INFRASTRUCTURE.md
+└── DEPLOYMENT.md
